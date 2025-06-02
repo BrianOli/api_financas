@@ -1,5 +1,5 @@
 from flask import Flask
-from routes.receive_file import upload_bp
+from routes.exctract_data import upload_bp
 
 app = Flask(__name__)
 
