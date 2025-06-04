@@ -22,8 +22,8 @@ def upload_file():
         if uploaded_file and uploaded_file.filename.endswith('.csv'):
             df = extract_data(uploaded_file)
             
-            for data in df.Descrição:
-                data = summarize_desc(data)
+            if 'Descrição' in df.columns:
+                df['Descrição'] = df['Descrição'].apply(summarize_desc)
 
             return jsonify({'message': 'CSV file processed successfully', 'data': df.to_dict(orient='records')}), 200
 
@@ -50,20 +50,16 @@ def extract_data(uploaded_file):
 
 
 def summarize_desc(desc):
-    prompt = f'Resuma: {desc}, Por exemplo: `Transferência Recebida - Adriano de Jesus Pereira Carvalho - •••.584.408-•• - NU PAGAMENTOS - IP (0260) Agência: 1 Conta: 32993603-6` transforme em `Transferência Recebida - Adriano de Jesus Pereira Carvalho`'
+    prompt = f'remova dados não necessários para um relatório financeiro como dados bancários ou outras informações irrelevantes, mantenha apenas o nome de quem recebeu/enviou a transferencia ou o que foi a transferência, não há necessidade de manter o nome do banco ou coisas parecidas.\n O texto à ser resumido é: {desc}'
 
-    headers = {"Authorization": os.getenv('LLM_TOKEN')}
-    url = os.getenv('LLM_URL')
-    payload = {
-        "providers": "microsoft,connexun",
-        "language": "pt-br",
-        "text": f"{prompt}",
-    }
+    api_key = os.getenv("LLM_TOKEN")
+    model = os.getenv("LLM_MODEL")
+    api_url = f'http://195.179.229.119/gpt/api.php?prompt={requests.utils.quote(prompt)}&api_key={requests.utils.quote(api_key)}&model={requests.utils.quote(model)}'
 
     try:
-        response = requests.post(url, json=payload, headers=headers)    
-        result = response.json()
-        return result
-
+        response = requests.get(api_url)
+        response.raise_for_status()  
+        data = response.json()
+        return data['content']
     except Exception as e:
         return jsonify({'Server Error': f'{str(e)}'})
