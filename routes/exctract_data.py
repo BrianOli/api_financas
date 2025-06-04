@@ -19,20 +19,32 @@ def upload_file():
         return jsonify({'error': 'No file selected'}, 400)
 
     try:
-        if uploaded_file and uploaded_file.filename.endswith('.csv'):
-            df = extract_data(uploaded_file)
+        df_data = get_data(uploaded_file)
+        return jsonify({'Message': 'File readed successfully', 'Data': df_data})
+
+    except Exception as e:
+        return jsonify({'error': f'Server error: {str(e)}'}), 500
+
+def get_data(up_file):
+    try:
+        if up_file.filename == '':
+            return FileNotFoundError({'Error': 'No file sended'})
+
+        if up_file and up_file.filename.endswith('.csv'):
+            df = extract_data(up_file)
             
             if 'Descrição' in df.columns:
                 df['Descrição'] = df['Descrição'].apply(summarize_desc)
 
-            return jsonify({'message': 'CSV file processed successfully', 'data': df.to_dict(orient='records')}), 200
+            return df.to_dict(orient='records')
 
         else:
-            file_content = uploaded_file.stream.read()
-            return jsonify({'message': 'File received', 'filename': uploaded_file.filename, 'content_length': len(file_content)}), 200
-
+            file_content = up_file.stream.read()
+            return jsonify({'message': 'File received', 'filename': up_file.filename, 'content_length': len(file_content)}), 200
+        
     except Exception as e:
-        return jsonify({'error': f'Server error: {str(e)}'}), 500
+        return jsonify({'Error': f'Server error: {str(e)}'})
+
 
 def extract_data(uploaded_file):
     csv_content = uploaded_file.stream.read().decode('utf-8')
@@ -47,7 +59,6 @@ def extract_data(uploaded_file):
     if miss_cols: return jsonify({'Columns missing': miss_cols}), 400
     
     return df[columns_needed]
-
 
 def summarize_desc(desc):
     prompt = f'remova dados não necessários para um relatório financeiro como dados bancários ou outras informações irrelevantes, mantenha apenas o nome de quem recebeu/enviou a transferencia ou o que foi a transferência, não há necessidade de manter o nome do banco ou coisas parecidas.\n O texto à ser resumido é: {desc}'
